@@ -50,6 +50,18 @@ function compareNullable(a: string | null, b: string | null) {
   return a.localeCompare(b, "fi");
 }
 
+function getTodayInHelsinki(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Helsinki" }).format(new Date());
+}
+
+function TodayBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-300">
+      Tänään
+    </span>
+  );
+}
+
 export default function DissertationTable({
   dissertations,
   defaultSortDirection = "desc",
@@ -73,6 +85,7 @@ export default function DissertationTable({
   const [page, setPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [isUniversityMenuOpen, setIsUniversityMenuOpen] = useState(false);
   const universityMenuRef = useRef<HTMLDivElement>(null);
+  const today = useMemo(() => getTodayInHelsinki(), []);
 
   useEffect(() => {
     if (!isUniversityMenuOpen) return;
@@ -181,7 +194,7 @@ export default function DissertationTable({
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Hae nimellä tai aiheella…"
-          className="w-full rounded-lg border border-black/[.08] bg-white px-3 py-2 text-sm text-black placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-white/[.145] dark:bg-zinc-950 dark:text-zinc-50 sm:max-w-xs"
+          className="w-full rounded-lg border border-black/[.08] bg-white px-3 py-2 text-sm text-black placeholder:text-zinc-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-white/[.145] dark:bg-zinc-950 dark:text-zinc-50 sm:max-w-xs"
         />
 
         <div ref={universityMenuRef} className="relative w-full sm:w-auto">
@@ -189,7 +202,12 @@ export default function DissertationTable({
             type="button"
             onClick={() => setIsUniversityMenuOpen((open) => !open)}
             aria-expanded={isUniversityMenuOpen}
-            className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-black/[.08] bg-white px-3 py-2 text-sm text-black dark:border-white/[.145] dark:bg-zinc-950 dark:text-zinc-50 sm:min-w-56"
+            className={
+              "flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-sm text-black dark:bg-zinc-950 dark:text-zinc-50 sm:min-w-56 " +
+              (isUniversityMenuOpen
+                ? "border-indigo-400 dark:border-indigo-500"
+                : "border-black/[.08] dark:border-white/[.145]")
+            }
           >
             {universityLabel}
             <span aria-hidden className="text-zinc-400">▾</span>
@@ -201,6 +219,7 @@ export default function DissertationTable({
                   type="checkbox"
                   checked={selectedUniversities.length === 0}
                   onChange={clearUniversitySelection}
+                  className="accent-indigo-600"
                 />
                 Kaikki
               </label>
@@ -214,6 +233,7 @@ export default function DissertationTable({
                     type="checkbox"
                     checked={selectedUniversities.includes(university)}
                     onChange={() => toggleUniversity(university)}
+                    className="accent-indigo-600"
                   />
                   {university}
                 </label>
@@ -231,13 +251,16 @@ export default function DissertationTable({
             {paginated.map((d) => (
               <div
                 key={d.id}
-                className="flex flex-col gap-2 rounded-2xl border border-black/[.08] bg-white p-4 text-sm dark:border-white/[.145] dark:bg-black"
+                className="flex flex-col gap-2 rounded-2xl border border-black/[.08] border-l-4 border-l-indigo-400/70 bg-white p-4 text-sm dark:border-white/[.145] dark:border-l-indigo-500/60 dark:bg-black"
               >
                 <p className="font-medium text-black dark:text-zinc-50">{d.name}</p>
                 <p className="text-zinc-700 dark:text-zinc-300">{d.title ?? "—"}</p>
-                <p className="text-zinc-500 dark:text-zinc-500">
-                  {d.university ?? "—"}
-                  {formatDate(d.defense_date) ? ` · ${formatDate(d.defense_date)}` : ""}
+                <p className="flex flex-wrap items-center gap-2 text-zinc-500 dark:text-zinc-500">
+                  <span>
+                    {d.university ?? "—"}
+                    {formatDate(d.defense_date) ? ` · ${formatDate(d.defense_date)}` : ""}
+                  </span>
+                  {d.defense_date === today && <TodayBadge />}
                 </p>
                 {d.opponent && (
                   <p className="text-zinc-500 dark:text-zinc-500">Vastaväittäjä: {d.opponent}</p>
@@ -246,7 +269,7 @@ export default function DissertationTable({
                   href={d.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-zinc-950 underline underline-offset-4 dark:text-zinc-50"
+                  className="font-medium text-indigo-700 underline underline-offset-4 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300"
                 >
                   Avaa
                 </a>
@@ -257,13 +280,16 @@ export default function DissertationTable({
           <div className="hidden overflow-x-auto rounded-2xl border border-black/[.08] dark:border-white/[.145] sm:block">
             <table className="w-full min-w-[860px] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-black/[.08] bg-zinc-50 dark:border-white/[.145] dark:bg-zinc-950">
+                <tr className="border-b border-indigo-100 bg-indigo-50/60 dark:border-indigo-900/50 dark:bg-indigo-950/20">
                   {COLUMNS.map((column) => (
                     <th key={column.key} className="whitespace-nowrap px-4 py-3 font-semibold text-black dark:text-zinc-50">
                       <button
                         type="button"
                         onClick={() => handleSort(column.key)}
-                        className="flex items-center gap-1 hover:text-zinc-600 dark:hover:text-zinc-300"
+                        className={
+                          "flex items-center gap-1 hover:text-indigo-700 dark:hover:text-indigo-300 " +
+                          (sortColumn === column.key ? "text-indigo-700 dark:text-indigo-300" : "")
+                        }
                       >
                         {column.label}
                         {sortColumn === column.key && (
@@ -281,13 +307,16 @@ export default function DissertationTable({
                 {paginated.map((d) => (
                   <tr
                     key={d.id}
-                    className="border-b border-black/[.08] bg-white last:border-b-0 dark:border-white/[.145] dark:bg-black"
+                    className="border-b border-black/[.08] bg-white last:border-b-0 hover:bg-indigo-50/50 dark:border-white/[.145] dark:bg-black dark:hover:bg-indigo-950/20"
                   >
                     <td className="px-4 py-3 font-medium text-black dark:text-zinc-50">{d.name}</td>
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.title ?? "—"}</td>
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.university ?? "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-700 dark:text-zinc-300">
-                      {formatDate(d.defense_date) ?? "—"}
+                      <span className="flex items-center gap-2">
+                        {formatDate(d.defense_date) ?? "—"}
+                        {d.defense_date === today && <TodayBadge />}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.opponent ?? "—"}</td>
                     <td className="px-4 py-3">
@@ -295,7 +324,7 @@ export default function DissertationTable({
                         href={d.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-zinc-950 underline underline-offset-4 dark:text-zinc-50"
+                        className="font-medium text-indigo-700 underline underline-offset-4 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300"
                       >
                         Avaa
                       </a>
@@ -316,7 +345,7 @@ export default function DissertationTable({
                 type="button"
                 onClick={() => goToPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="rounded-lg border border-black/[.08] px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[.145]"
+                className="rounded-lg border border-black/[.08] px-3 py-1.5 hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-black/[.08] disabled:hover:text-inherit dark:border-white/[.145] dark:hover:border-indigo-700 dark:hover:text-indigo-300 dark:disabled:hover:border-white/[.145]"
               >
                 Edellinen
               </button>
@@ -327,7 +356,7 @@ export default function DissertationTable({
                 type="button"
                 onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="rounded-lg border border-black/[.08] px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[.145]"
+                className="rounded-lg border border-black/[.08] px-3 py-1.5 hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-black/[.08] disabled:hover:text-inherit dark:border-white/[.145] dark:hover:border-indigo-700 dark:hover:text-indigo-300 dark:disabled:hover:border-white/[.145]"
               >
                 Seuraava
               </button>

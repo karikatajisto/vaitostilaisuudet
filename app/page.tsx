@@ -39,9 +39,9 @@ function Tabs({ active }: { active: View }) {
           key={tab.view}
           href={tab.view === "tulevat" ? "/" : `/?view=${tab.view}`}
           className={
-            "-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium " +
+            "-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors " +
             (active === tab.view
-              ? "border-black text-black dark:border-zinc-50 dark:text-zinc-50"
+              ? "border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300"
               : "border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200")
           }
         >
@@ -87,8 +87,12 @@ export default async function Home({
 
   return (
     <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
+      <div className="h-1 w-full bg-gradient-to-r from-indigo-600 via-sky-500 to-amber-400" />
       <main className="flex w-full max-w-6xl flex-col gap-8 py-16 px-6 sm:px-16">
         <div className="flex flex-col gap-4">
+          <p className="text-sm font-medium tracking-wide text-indigo-700 uppercase dark:text-indigo-400">
+            Suomalaiset yliopistot
+          </p>
           <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
             Väitöstilaisuudet
           </h1>
