@@ -25,7 +25,6 @@ type SortDirection = "asc" | "desc";
 const PAGE_SIZE = 20;
 const SORT_COLUMNS: SortColumn[] = ["name", "title", "university", "defense_date", "opponent"];
 const DEFAULT_SORT_COLUMN: SortColumn = "defense_date";
-const DEFAULT_SORT_DIRECTION: SortDirection = "desc";
 
 const COLUMNS: { key: SortColumn; label: string }[] = [
   { key: "name", label: "Väittelijä" },
@@ -53,8 +52,12 @@ function compareNullable(a: string | null, b: string | null) {
 
 export default function DissertationTable({
   dissertations,
+  defaultSortDirection = "desc",
+  emptyMessage = "Ei hakuehtoja vastaavia väitöksiä.",
 }: {
   dissertations: DissertationRow[];
+  defaultSortDirection?: SortDirection;
+  emptyMessage?: string;
 }) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
@@ -65,7 +68,7 @@ export default function DissertationTable({
     parseEnumParam(searchParams.get("sort"), SORT_COLUMNS, DEFAULT_SORT_COLUMN)
   );
   const [sortDirection, setSortDirection] = useState<SortDirection>(() =>
-    parseEnumParam(searchParams.get("dir"), ["asc", "desc"], DEFAULT_SORT_DIRECTION)
+    parseEnumParam(searchParams.get("dir"), ["asc", "desc"], defaultSortDirection)
   );
   const [page, setPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [isUniversityMenuOpen, setIsUniversityMenuOpen] = useState(false);
@@ -133,7 +136,7 @@ export default function DissertationTable({
       column === sortColumn ? (sortDirection === "asc" ? "desc" : "asc") : "asc";
     setSortColumn(column);
     setSortDirection(direction);
-    const isDefault = column === DEFAULT_SORT_COLUMN && direction === DEFAULT_SORT_DIRECTION;
+    const isDefault = column === DEFAULT_SORT_COLUMN && direction === defaultSortDirection;
     syncFilterParams({ sort: isDefault ? null : column, dir: isDefault ? null : direction });
   }
 
@@ -221,9 +224,7 @@ export default function DissertationTable({
       </div>
 
       {sorted.length === 0 ? (
-        <p className="text-base text-zinc-600 dark:text-zinc-400">
-          Ei hakuehtoja vastaavia väitöksiä.
-        </p>
+        <p className="text-base text-zinc-600 dark:text-zinc-400">{emptyMessage}</p>
       ) : (
         <>
           <div className="flex flex-col gap-3 sm:hidden">
