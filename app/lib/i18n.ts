@@ -2,10 +2,10 @@ export type Lang = "fi" | "sv" | "en";
 
 export const DEFAULT_LANG: Lang = "fi";
 
-export const LANGUAGE_OPTIONS: { code: Lang; label: string; flag: string }[] = [
-  { code: "fi", label: "Suomeksi", flag: "🇫🇮" },
-  { code: "sv", label: "Ruotsiksi", flag: "🇸🇪" },
-  { code: "en", label: "Englanniksi", flag: "🇬🇧" },
+export const LANGUAGE_OPTIONS: { code: Lang; label: string }[] = [
+  { code: "fi", label: "Suomeksi" },
+  { code: "sv", label: "Ruotsiksi" },
+  { code: "en", label: "Englanniksi" },
 ];
 
 export function parseLang(value: string | string[] | undefined): Lang {
