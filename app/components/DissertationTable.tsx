@@ -8,6 +8,7 @@ import {
   parsePageParam,
   syncFilterParams,
 } from "@/app/lib/url-filter-state";
+import { DICTIONARIES, type Lang } from "@/app/lib/i18n";
 
 export interface DissertationRow {
   id: number;
@@ -26,38 +27,30 @@ const PAGE_SIZE = 20;
 const SORT_COLUMNS: SortColumn[] = ["name", "title", "university", "defense_date", "opponent"];
 const DEFAULT_SORT_COLUMN: SortColumn = "defense_date";
 
-const COLUMNS: { key: SortColumn; label: string }[] = [
-  { key: "name", label: "Väittelijä" },
-  { key: "title", label: "Väitöksen aihe" },
-  { key: "university", label: "Yliopisto" },
-  { key: "defense_date", label: "Päivämäärä" },
-  { key: "opponent", label: "Vastaväittäjä" },
-];
-
-function formatDate(date: string | null) {
+function formatDate(date: string | null, locale: string) {
   if (!date) return null;
-  return new Date(date).toLocaleDateString("fi-FI", {
+  return new Date(date).toLocaleDateString(locale, {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 }
 
-function compareNullable(a: string | null, b: string | null) {
+function compareNullable(a: string | null, b: string | null, locale: string) {
   if (a === null && b === null) return 0;
   if (a === null) return 1;
   if (b === null) return -1;
-  return a.localeCompare(b, "fi");
+  return a.localeCompare(b, locale);
 }
 
 function getTodayInHelsinki(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Helsinki" }).format(new Date());
 }
 
-function TodayBadge() {
+function TodayBadge({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-400/10 dark:text-amber-300">
-      Tänään
+      {label}
     </span>
   );
 }
@@ -65,12 +58,22 @@ function TodayBadge() {
 export default function DissertationTable({
   dissertations,
   defaultSortDirection = "desc",
-  emptyMessage = "Ei hakuehtoja vastaavia väitöksiä.",
+  emptyMessage,
+  lang,
 }: {
   dissertations: DissertationRow[];
   defaultSortDirection?: SortDirection;
-  emptyMessage?: string;
+  emptyMessage: string;
+  lang: Lang;
 }) {
+  const { table: dict, dateLocale, sortLocale } = DICTIONARIES[lang];
+  const COLUMNS: { key: SortColumn; label: string }[] = [
+    { key: "name", label: dict.columns.name },
+    { key: "title", label: dict.columns.title },
+    { key: "university", label: dict.columns.university },
+    { key: "defense_date", label: dict.columns.date },
+    { key: "opponent", label: dict.columns.opponent },
+  ];
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [selectedUniversities, setSelectedUniversities] = useState<string[]>(() =>
@@ -111,9 +114,9 @@ export default function DissertationTable({
   const universities = useMemo(
     () =>
       Array.from(new Set(dissertations.map((d) => d.university).filter((u): u is string => Boolean(u)))).sort(
-        (a, b) => a.localeCompare(b, "fi")
+        (a, b) => a.localeCompare(b, sortLocale)
       ),
-    [dissertations]
+    [dissertations, sortLocale]
   );
 
   const filtered = useMemo(() => {
@@ -134,11 +137,11 @@ export default function DissertationTable({
     const direction = sortDirection === "asc" ? 1 : -1;
     return [...filtered].sort((a, b) => {
       if (sortColumn === "defense_date") {
-        return direction * compareNullable(a.defense_date, b.defense_date);
+        return direction * compareNullable(a.defense_date, b.defense_date, sortLocale);
       }
-      return direction * compareNullable(a[sortColumn], b[sortColumn]);
+      return direction * compareNullable(a[sortColumn], b[sortColumn], sortLocale);
     });
-  }, [filtered, sortColumn, sortDirection]);
+  }, [filtered, sortColumn, sortDirection, sortLocale]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -181,10 +184,10 @@ export default function DissertationTable({
 
   const universityLabel =
     selectedUniversities.length === 0
-      ? "Kaikki yliopistot"
+      ? dict.allUniversities
       : selectedUniversities.length === 1
         ? selectedUniversities[0]
-        : `${selectedUniversities.length} yliopistoa valittu`;
+        : dict.universitiesSelected(selectedUniversities.length);
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,7 +196,7 @@ export default function DissertationTable({
           type="search"
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder="Hae nimellä tai aiheella…"
+          placeholder={dict.searchPlaceholder}
           className="w-full rounded-lg border border-black/[.08] bg-white px-3 py-2 text-sm text-black placeholder:text-zinc-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 dark:border-white/[.145] dark:bg-zinc-950 dark:text-zinc-50 sm:max-w-xs"
         />
 
@@ -221,7 +224,7 @@ export default function DissertationTable({
                   onChange={clearUniversitySelection}
                   className="accent-indigo-600"
                 />
-                Kaikki
+                {dict.all}
               </label>
               <hr className="my-1 border-black/[.08] dark:border-white/[.145]" />
               {universities.map((university) => (
@@ -258,12 +261,12 @@ export default function DissertationTable({
                 <p className="flex flex-wrap items-center gap-2 text-zinc-500 dark:text-zinc-500">
                   <span>
                     {d.university ?? "—"}
-                    {formatDate(d.defense_date) ? ` · ${formatDate(d.defense_date)}` : ""}
+                    {formatDate(d.defense_date, dateLocale) ? ` · ${formatDate(d.defense_date, dateLocale)}` : ""}
                   </span>
-                  {d.defense_date === today && <TodayBadge />}
+                  {d.defense_date === today && <TodayBadge label={dict.today} />}
                 </p>
                 {d.opponent && (
-                  <p className="text-zinc-500 dark:text-zinc-500">Vastaväittäjä: {d.opponent}</p>
+                  <p className="text-zinc-500 dark:text-zinc-500">{dict.opponentPrefix}{d.opponent}</p>
                 )}
                 <a
                   href={d.link}
@@ -271,7 +274,7 @@ export default function DissertationTable({
                   rel="noopener noreferrer"
                   className="font-medium text-indigo-700 underline underline-offset-4 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300"
                 >
-                  Avaa
+                  {dict.open}
                 </a>
               </div>
             ))}
@@ -299,7 +302,7 @@ export default function DissertationTable({
                     </th>
                   ))}
                   <th className="whitespace-nowrap px-4 py-3 font-semibold text-black dark:text-zinc-50">
-                    Linkki
+                    {dict.columns.link}
                   </th>
                 </tr>
               </thead>
@@ -314,8 +317,8 @@ export default function DissertationTable({
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.university ?? "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-700 dark:text-zinc-300">
                       <span className="flex items-center gap-2">
-                        {formatDate(d.defense_date) ?? "—"}
-                        {d.defense_date === today && <TodayBadge />}
+                        {formatDate(d.defense_date, dateLocale) ?? "—"}
+                        {d.defense_date === today && <TodayBadge label={dict.today} />}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.opponent ?? "—"}</td>
@@ -326,7 +329,7 @@ export default function DissertationTable({
                         rel="noopener noreferrer"
                         className="font-medium text-indigo-700 underline underline-offset-4 hover:text-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300"
                       >
-                        Avaa
+                        {dict.open}
                       </a>
                     </td>
                   </tr>
@@ -337,8 +340,11 @@ export default function DissertationTable({
 
           <div className="flex items-center justify-between gap-4 text-sm text-zinc-600 dark:text-zinc-400">
             <p>
-              Näytetään {(currentPage - 1) * PAGE_SIZE + 1}–
-              {Math.min(currentPage * PAGE_SIZE, sorted.length)} / {sorted.length}
+              {dict.showing(
+                (currentPage - 1) * PAGE_SIZE + 1,
+                Math.min(currentPage * PAGE_SIZE, sorted.length),
+                sorted.length
+              )}
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -347,18 +353,16 @@ export default function DissertationTable({
                 disabled={currentPage === 1}
                 className="rounded-lg border border-black/[.08] px-3 py-1.5 hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-black/[.08] disabled:hover:text-inherit dark:border-white/[.145] dark:hover:border-indigo-700 dark:hover:text-indigo-300 dark:disabled:hover:border-white/[.145]"
               >
-                Edellinen
+                {dict.previous}
               </button>
-              <span>
-                Sivu {currentPage} / {totalPages}
-              </span>
+              <span>{dict.page(currentPage, totalPages)}</span>
               <button
                 type="button"
                 onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
                 className="rounded-lg border border-black/[.08] px-3 py-1.5 hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-black/[.08] disabled:hover:text-inherit dark:border-white/[.145] dark:hover:border-indigo-700 dark:hover:text-indigo-300 dark:disabled:hover:border-white/[.145]"
               >
-                Seuraava
+                {dict.next}
               </button>
             </div>
           </div>
