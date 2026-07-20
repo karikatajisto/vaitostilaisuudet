@@ -6,15 +6,11 @@ import { createSupabaseClient } from "@/app/lib/supabase/client";
 import DissertationTable, {
   type DissertationRow,
 } from "@/app/components/DissertationTable";
-import { DEFAULT_LANG, DICTIONARIES, parseLang, type Dictionary, type Lang } from "@/app/lib/i18n";
+import LanguageMenu from "@/app/components/LanguageMenu";
+import { buildHref, type SearchParams } from "@/app/lib/href";
+import { DICTIONARIES, parseLang, type Dictionary, type Lang } from "@/app/lib/i18n";
 
 type View = "tulevat" | "menneet";
-type SearchParams = { [key: string]: string | string[] | undefined };
-
-const LANGUAGES: { code: Lang; label: string }[] = [
-  { code: "fi", label: "SUOMEKSI" },
-  { code: "en", label: "ENGLISH" },
-];
 
 // Dates are stored as plain `date` columns (no time zone) representing
 // Finnish defence events — compare against "today" in Europe/Helsinki
@@ -24,31 +20,13 @@ function getTodayInHelsinki(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Helsinki" }).format(new Date());
 }
 
-// Builds a "/"-relative href from the current query string with the given
-// overrides applied, dropping params back to their implicit defaults so the
-// URL stays as clean as it was before language support was added.
-function buildHref(params: SearchParams, overrides: Record<string, string>): string {
-  const sp = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined) continue;
-    sp.set(key, Array.isArray(value) ? value[0] : value);
-  }
-  for (const [key, value] of Object.entries(overrides)) {
-    sp.set(key, value);
-  }
-  if (sp.get("view") === "tulevat") sp.delete("view");
-  if (sp.get("lang") === DEFAULT_LANG) sp.delete("lang");
-  const query = sp.toString();
-  return query ? `/?${query}` : "/";
-}
-
 function Tabs({ active, lang, params, dict }: { active: View; lang: Lang; params: SearchParams; dict: Dictionary }) {
   return (
     <nav className="flex flex-nowrap gap-2 overflow-x-auto border-b border-black/[.08] dark:border-white/[.145]">
       {(["tulevat", "menneet"] as const).map((view) => (
         <Link
           key={view}
-          href={buildHref(params, { view, lang })}
+          href={buildHref(params, { view, lang }, { view: "tulevat", lang: "fi" })}
           className={
             "-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors " +
             (active === view
@@ -58,28 +36,6 @@ function Tabs({ active, lang, params, dict }: { active: View; lang: Lang; params
         >
           {dict.tabs[view]}
         </Link>
-      ))}
-    </nav>
-  );
-}
-
-function LanguageSwitch({ active, view, params }: { active: Lang; view: View; params: SearchParams }) {
-  return (
-    <nav className="flex items-center gap-2 text-xs font-medium tracking-wide">
-      {LANGUAGES.map((language, index) => (
-        <span key={language.code} className="flex items-center gap-2">
-          {index > 0 && <span className="text-zinc-300 dark:text-zinc-700">/</span>}
-          <Link
-            href={buildHref(params, { view, lang: language.code })}
-            className={
-              active === language.code
-                ? "text-indigo-700 dark:text-indigo-300"
-                : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-            }
-          >
-            {language.label}
-          </Link>
-        </span>
       ))}
     </nav>
   );
@@ -139,7 +95,7 @@ export default async function Home({
             <p className="text-sm font-medium tracking-wide text-indigo-700 uppercase dark:text-indigo-400">
               {dict.kicker}
             </p>
-            <LanguageSwitch active={lang} view={view} params={params} />
+            <LanguageMenu active={lang} view={view} params={params} />
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
             {dict.title}

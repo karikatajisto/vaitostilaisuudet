@@ -1,9 +1,16 @@
-export type Lang = "fi" | "en";
+export type Lang = "fi" | "sv" | "en";
 
 export const DEFAULT_LANG: Lang = "fi";
 
+export const LANGUAGE_OPTIONS: { code: Lang; label: string; flag: string }[] = [
+  { code: "fi", label: "Suomeksi", flag: "🇫🇮" },
+  { code: "sv", label: "Ruotsiksi", flag: "🇸🇪" },
+  { code: "en", label: "Englanniksi", flag: "🇬🇧" },
+];
+
 export function parseLang(value: string | string[] | undefined): Lang {
-  return value === "en" ? "en" : "fi";
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === "sv" ? "sv" : raw === "en" ? "en" : "fi";
 }
 
 export interface Dictionary {
@@ -77,6 +84,44 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
     },
     dateLocale: "fi-FI",
     sortLocale: "fi",
+  },
+  sv: {
+    kicker: "Finländska universitet",
+    title: "Disputationer",
+    metaTitle: "Disputationer",
+    metaDescription: "Kommande och tidigare disputationer vid finländska universitet.",
+    tabs: { tulevat: "Kommande", menneet: "Tidigare" },
+    emptyMessage: {
+      tulevat: "Inga kommande disputationer att visa.",
+      menneet: "Inga tidigare disputationer att visa.",
+    },
+    filteredEmptyMessage: {
+      tulevat: "Inga kommande disputationer matchar sökningen.",
+      menneet: "Inga tidigare disputationer matchar sökningen.",
+    },
+    table: {
+      searchPlaceholder: "Sök efter namn eller ämne…",
+      allUniversities: "Alla universitet",
+      all: "Alla",
+      universitiesSelected: (count) => `${count} universitet valda`,
+      columns: {
+        name: "Doktorand",
+        title: "Avhandlingens ämne",
+        university: "Universitet",
+        date: "Datum",
+        opponent: "Opponent",
+        link: "Länk",
+      },
+      open: "Öppna",
+      opponentPrefix: "Opponent: ",
+      today: "Idag",
+      showing: (from, to, total) => `Visar ${from}–${to} av ${total}`,
+      previous: "Föregående",
+      next: "Nästa",
+      page: (current, total) => `Sida ${current} av ${total}`,
+    },
+    dateLocale: "sv-SE",
+    sortLocale: "sv",
   },
   en: {
     kicker: "Finnish universities",
