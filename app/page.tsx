@@ -34,7 +34,7 @@ function Tabs({
   upcomingCount: number;
 }) {
   return (
-    <nav className="flex flex-nowrap gap-2 overflow-x-auto border-b border-black/[.08] dark:border-white/[.145]">
+    <nav className="flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden border-b border-black/[.08] dark:border-white/[.145]">
       {(["tulevat", "menneet"] as const).map((view) => (
         <Link
           key={view}
