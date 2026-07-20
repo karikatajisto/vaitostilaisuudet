@@ -12,8 +12,8 @@ type View = "tulevat" | "menneet";
 type SearchParams = { [key: string]: string | string[] | undefined };
 
 const LANGUAGES: { code: Lang; label: string }[] = [
-  { code: "fi", label: "SUOMI" },
-  { code: "en", label: "ENGLANTI" },
+  { code: "fi", label: "SUOMEKSI" },
+  { code: "en", label: "ENGLISH" },
 ];
 
 // Dates are stored as plain `date` columns (no time zone) representing
