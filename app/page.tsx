@@ -20,7 +20,19 @@ function getTodayInHelsinki(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Helsinki" }).format(new Date());
 }
 
-function Tabs({ active, lang, params, dict }: { active: View; lang: Lang; params: SearchParams; dict: Dictionary }) {
+function Tabs({
+  active,
+  lang,
+  params,
+  dict,
+  upcomingCount,
+}: {
+  active: View;
+  lang: Lang;
+  params: SearchParams;
+  dict: Dictionary;
+  upcomingCount: number;
+}) {
   return (
     <nav className="flex flex-nowrap gap-2 overflow-x-auto border-b border-black/[.08] dark:border-white/[.145]">
       {(["tulevat", "menneet"] as const).map((view) => (
@@ -35,6 +47,7 @@ function Tabs({ active, lang, params, dict }: { active: View; lang: Lang; params
           }
         >
           {dict.tabs[view]}
+          {view === "tulevat" && ` (${upcomingCount})`}
         </Link>
       ))}
     </nav>
@@ -86,6 +99,24 @@ export default async function Home({
 
   const dissertations = (data ?? []) as DissertationRow[];
 
+  // The tab label shows the upcoming count regardless of which tab is
+  // active; reuse the already-fetched list on the tulevat tab itself, and
+  // run a cheap head-only count query for it otherwise.
+  let upcomingCount: number;
+  if (view === "tulevat") {
+    upcomingCount = dissertations.length;
+  } else {
+    const { count, error: countError } = await supabase
+      .from("dissertations")
+      .select("id", { count: "exact", head: true })
+      .gte("defense_date", today);
+
+    if (countError) {
+      throw new Error(`Väitösten haku epäonnistui: ${countError.message}`);
+    }
+    upcomingCount = count ?? 0;
+  }
+
   return (
     <div className="flex flex-col flex-1 items-center bg-zinc-50 font-sans dark:bg-black">
       <div className="h-1 w-full bg-gradient-to-r from-indigo-600 via-sky-500 to-amber-400" />
@@ -100,7 +131,7 @@ export default async function Home({
           <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
             {dict.title}
           </h1>
-          <Tabs active={view} lang={lang} params={params} dict={dict} />
+          <Tabs active={view} lang={lang} params={params} dict={dict} upcomingCount={upcomingCount} />
         </div>
 
         <Suspense fallback={null}>
