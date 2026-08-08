@@ -2,11 +2,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createSupabaseClient } from "@/app/lib/supabase/client";
 import DissertationTable, {
   type DissertationRow,
 } from "@/app/components/DissertationTable";
 import LanguageMenu from "@/app/components/LanguageMenu";
+import LastUpdated from "@/app/components/LastUpdated";
 import { buildHref, type SearchParams } from "@/app/lib/href";
 import { DICTIONARIES, parseLang, type Dictionary, type Lang } from "@/app/lib/i18n";
 
@@ -18,6 +20,25 @@ type View = "tulevat" | "menneet";
 // flip a few hours early/late around midnight.
 function getTodayInHelsinki(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Helsinki" }).format(new Date());
+}
+
+// The dissertations table this site reads is populated by vaitokset's
+// nightly /api/ingest job (same Supabase project) — site_meta.last_updated
+// is written there, so this reuses that single timestamp rather than
+// tracking its own. Decorative only: a broken lookup must never take down
+// the listing, so this swallows errors instead of throwing.
+async function fetchLastUpdated(supabase: SupabaseClient): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("site_meta")
+    .select("value")
+    .eq("key", "last_updated")
+    .maybeSingle();
+
+  if (error) {
+    console.error(`Päivitysajan haku epäonnistui: ${error.message}`);
+    return null;
+  }
+  return data?.value ?? null;
 }
 
 function Tabs({
@@ -77,6 +98,7 @@ export default async function Home({
 
   const supabase = createSupabaseClient();
   const today = getTodayInHelsinki();
+  const lastUpdated = await fetchLastUpdated(supabase);
 
   const baseQuery = supabase
     .from("dissertations")
@@ -128,9 +150,14 @@ export default async function Home({
             </p>
             <LanguageMenu active={lang} view={view} params={params} />
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
-            {dict.title}
-          </h1>
+          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+            <h1 className="text-3xl font-semibold tracking-tight text-black dark:text-zinc-50">
+              {dict.title}
+            </h1>
+            {lastUpdated && (
+              <LastUpdated value={lastUpdated} label={dict.lastUpdatedLabel} dateLocale={dict.dateLocale} />
+            )}
+          </div>
           <Tabs active={view} lang={lang} params={params} dict={dict} upcomingCount={upcomingCount} />
         </div>
 

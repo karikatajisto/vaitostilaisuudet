@@ -44,6 +44,7 @@ export interface Dictionary {
   };
   dateLocale: string;
   sortLocale: string;
+  lastUpdatedLabel: string;
 }
 
 export const DICTIONARIES: Record<Lang, Dictionary> = {
@@ -84,6 +85,7 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
     },
     dateLocale: "fi-FI",
     sortLocale: "fi",
+    lastUpdatedLabel: "Sivusto päivitetty",
   },
   sv: {
     kicker: "Finländska universitet",
@@ -122,6 +124,7 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
     },
     dateLocale: "sv-SE",
     sortLocale: "sv",
+    lastUpdatedLabel: "Webbplatsen uppdaterad",
   },
   en: {
     kicker: "Finnish universities",
@@ -160,5 +163,6 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
     },
     dateLocale: "en-GB",
     sortLocale: "en",
+    lastUpdatedLabel: "Site updated",
   },
 };
