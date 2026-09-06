@@ -102,7 +102,7 @@ export default async function Home({
 
   const baseQuery = supabase
     .from("dissertations")
-    .select("id, name, title, university, defense_date, opponent, link");
+    .select("id, name, title, university, defense_date, opponent, link, paaluokka, oppiaine");
 
   // Undated rows (rare backfilled records missing a confirmed date) are
   // grouped into menneet rather than dropped from both tabs — an upcoming

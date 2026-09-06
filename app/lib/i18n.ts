@@ -26,16 +26,20 @@ export interface Dictionary {
     allUniversities: string;
     all: string;
     universitiesSelected: (count: number) => string;
+    allFields: string;
+    fieldsSelected: (count: number) => string;
     columns: {
       name: string;
       title: string;
       university: string;
       date: string;
       opponent: string;
+      tieteenala: string;
       link: string;
     };
     open: string;
     opponentPrefix: string;
+    subjectPrefix: string;
     today: string;
     showing: (from: number, to: number, total: number) => string;
     previous: string;
@@ -67,16 +71,20 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
       allUniversities: "Kaikki yliopistot",
       all: "Kaikki",
       universitiesSelected: (count) => `${count} yliopistoa valittu`,
+      allFields: "Kaikki tieteenalat",
+      fieldsSelected: (count) => `${count} tieteenalaa valittu`,
       columns: {
         name: "Väittelijä",
         title: "Väitöksen aihe",
         university: "Yliopisto",
         date: "Päivämäärä",
         opponent: "Vastaväittäjä",
+        tieteenala: "Tieteenala",
         link: "Linkki",
       },
       open: "Avaa",
       opponentPrefix: "Vastaväittäjä: ",
+      subjectPrefix: "Oppiaine: ",
       today: "Tänään",
       showing: (from, to, total) => `Näytetään ${from}–${to} / ${total}`,
       previous: "Edellinen",
@@ -106,16 +114,20 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
       allUniversities: "Alla universitet",
       all: "Alla",
       universitiesSelected: (count) => `${count} universitet valda`,
+      allFields: "Alla vetenskapsområden",
+      fieldsSelected: (count) => `${count} vetenskapsområden valda`,
       columns: {
         name: "Doktorand",
         title: "Avhandlingens ämne",
         university: "Universitet",
         date: "Datum",
         opponent: "Opponent",
+        tieteenala: "Vetenskapsområde",
         link: "Länk",
       },
       open: "Öppna",
       opponentPrefix: "Opponent: ",
+      subjectPrefix: "Ämne: ",
       today: "Idag",
       showing: (from, to, total) => `Visar ${from}–${to} av ${total}`,
       previous: "Föregående",
@@ -145,16 +157,20 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
       allUniversities: "All universities",
       all: "All",
       universitiesSelected: (count) => `${count} universities selected`,
+      allFields: "All fields of science",
+      fieldsSelected: (count) => `${count} fields selected`,
       columns: {
         name: "Candidate",
         title: "Dissertation topic",
         university: "University",
         date: "Date",
         opponent: "Opponent",
+        tieteenala: "Field of science",
         link: "Link",
       },
       open: "Open",
       opponentPrefix: "Opponent: ",
+      subjectPrefix: "Subject: ",
       today: "Today",
       showing: (from, to, total) => `Showing ${from}–${to} of ${total}`,
       previous: "Previous",
@@ -164,5 +180,46 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
     dateLocale: "en-GB",
     sortLocale: "en",
     lastUpdatedLabel: "Site updated",
+  },
+};
+
+// dissertations.paaluokka always stores the Finnish canonical name (that's
+// what the classifier in the vaitokset repo writes) — this translates it
+// for display without touching the stored value. Fixed order for the
+// filter boxes, not derived from data, since these six are the only
+// possible values regardless of what's currently loaded.
+export const PAALUOKKA_ORDER = [
+  "Luonnontieteet",
+  "Tekniikka",
+  "Lääke- ja terveystieteet",
+  "Maatalous- ja metsätieteet",
+  "Yhteiskuntatieteet",
+  "Humanistiset tieteet",
+] as const;
+
+export const FIELD_LABELS: Record<Lang, Record<string, string>> = {
+  fi: {
+    Luonnontieteet: "Luonnontieteet",
+    Tekniikka: "Tekniikka",
+    "Lääke- ja terveystieteet": "Lääke- ja terveystieteet",
+    "Maatalous- ja metsätieteet": "Maatalous- ja metsätieteet",
+    Yhteiskuntatieteet: "Yhteiskuntatieteet",
+    "Humanistiset tieteet": "Humanistiset tieteet",
+  },
+  sv: {
+    Luonnontieteet: "Naturvetenskaper",
+    Tekniikka: "Teknik",
+    "Lääke- ja terveystieteet": "Medicin och hälsovetenskaper",
+    "Maatalous- ja metsätieteet": "Lantbruks- och skogsvetenskaper",
+    Yhteiskuntatieteet: "Samhällsvetenskaper",
+    "Humanistiset tieteet": "Humaniora",
+  },
+  en: {
+    Luonnontieteet: "Natural sciences",
+    Tekniikka: "Engineering and technology",
+    "Lääke- ja terveystieteet": "Medical and health sciences",
+    "Maatalous- ja metsätieteet": "Agricultural and forestry sciences",
+    Yhteiskuntatieteet: "Social sciences",
+    "Humanistiset tieteet": "Humanities",
   },
 };

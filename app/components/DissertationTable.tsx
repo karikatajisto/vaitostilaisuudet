@@ -8,7 +8,7 @@ import {
   parsePageParam,
   syncFilterParams,
 } from "@/app/lib/url-filter-state";
-import { DICTIONARIES, type Lang } from "@/app/lib/i18n";
+import { DICTIONARIES, FIELD_LABELS, PAALUOKKA_ORDER, type Lang } from "@/app/lib/i18n";
 
 export interface DissertationRow {
   id: number;
@@ -18,13 +18,22 @@ export interface DissertationRow {
   defense_date: string | null;
   opponent: string | null;
   link: string;
+  paaluokka: string | null;
+  oppiaine: string | null;
 }
 
-type SortColumn = "name" | "title" | "university" | "defense_date" | "opponent";
+type SortColumn = "name" | "title" | "university" | "defense_date" | "opponent" | "paaluokka";
 type SortDirection = "asc" | "desc";
 
 const PAGE_SIZE = 20;
-const SORT_COLUMNS: SortColumn[] = ["name", "title", "university", "defense_date", "opponent"];
+const SORT_COLUMNS: SortColumn[] = [
+  "name",
+  "title",
+  "university",
+  "defense_date",
+  "opponent",
+  "paaluokka",
+];
 const DEFAULT_SORT_COLUMN: SortColumn = "defense_date";
 
 function formatDate(date: string | null, locale: string) {
@@ -67,17 +76,22 @@ export default function DissertationTable({
   lang: Lang;
 }) {
   const { table: dict, dateLocale, sortLocale } = DICTIONARIES[lang];
+  const fieldLabels = FIELD_LABELS[lang];
   const COLUMNS: { key: SortColumn; label: string }[] = [
     { key: "name", label: dict.columns.name },
     { key: "title", label: dict.columns.title },
     { key: "university", label: dict.columns.university },
     { key: "defense_date", label: dict.columns.date },
     { key: "opponent", label: dict.columns.opponent },
+    { key: "paaluokka", label: dict.columns.tieteenala },
   ];
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [selectedUniversities, setSelectedUniversities] = useState<string[]>(() =>
     parseListParam(searchParams.get("uni"))
+  );
+  const [selectedFields, setSelectedFields] = useState<string[]>(() =>
+    parseListParam(searchParams.get("field"))
   );
   const [sortColumn, setSortColumn] = useState<SortColumn>(() =>
     parseEnumParam(searchParams.get("sort"), SORT_COLUMNS, DEFAULT_SORT_COLUMN)
@@ -88,6 +102,8 @@ export default function DissertationTable({
   const [page, setPage] = useState(() => parsePageParam(searchParams.get("page")));
   const [isUniversityMenuOpen, setIsUniversityMenuOpen] = useState(false);
   const universityMenuRef = useRef<HTMLDivElement>(null);
+  const [isFieldMenuOpen, setIsFieldMenuOpen] = useState(false);
+  const fieldMenuRef = useRef<HTMLDivElement>(null);
   const today = useMemo(() => getTodayInHelsinki(), []);
 
   useEffect(() => {
@@ -111,6 +127,27 @@ export default function DissertationTable({
     };
   }, [isUniversityMenuOpen]);
 
+  useEffect(() => {
+    if (!isFieldMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!fieldMenuRef.current?.contains(event.target as Node)) {
+        setIsFieldMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setIsFieldMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFieldMenuOpen]);
+
   const universities = useMemo(
     () =>
       Array.from(new Set(dissertations.map((d) => d.university).filter((u): u is string => Boolean(u)))).sort(
@@ -119,7 +156,11 @@ export default function DissertationTable({
     [dissertations, sortLocale]
   );
 
-  const filtered = useMemo(() => {
+  // Split into two layers so the field-of-science box counts reflect
+  // search/university filtering but not the field selection itself —
+  // otherwise every count would collapse to the selected boxes' own count
+  // the moment you clicked one.
+  const filteredBeforeField = useMemo(() => {
     const query = search.trim().toLowerCase();
     return dissertations.filter((d) => {
       const matchesSearch =
@@ -132,6 +173,19 @@ export default function DissertationTable({
       return matchesSearch && matchesUniversity;
     });
   }, [dissertations, search, selectedUniversities]);
+
+  const fieldCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const d of filteredBeforeField) {
+      if (d.paaluokka) counts.set(d.paaluokka, (counts.get(d.paaluokka) ?? 0) + 1);
+    }
+    return counts;
+  }, [filteredBeforeField]);
+
+  const filtered = useMemo(() => {
+    if (selectedFields.length === 0) return filteredBeforeField;
+    return filteredBeforeField.filter((d) => d.paaluokka !== null && selectedFields.includes(d.paaluokka));
+  }, [filteredBeforeField, selectedFields]);
 
   const sorted = useMemo(() => {
     const direction = sortDirection === "asc" ? 1 : -1;
@@ -165,6 +219,15 @@ export default function DissertationTable({
     syncFilterParams({ uni: next.length > 0 ? next.join(",") : null, page: null });
   }
 
+  function toggleField(field: string) {
+    const next = selectedFields.includes(field)
+      ? selectedFields.filter((f) => f !== field)
+      : [...selectedFields, field];
+    setSelectedFields(next);
+    setPage(1);
+    syncFilterParams({ field: next.length > 0 ? next.join(",") : null, page: null });
+  }
+
   function handleSearchChange(value: string) {
     setSearch(value);
     setPage(1);
@@ -175,6 +238,12 @@ export default function DissertationTable({
     setSelectedUniversities([]);
     setPage(1);
     syncFilterParams({ uni: null, page: null });
+  }
+
+  function clearFieldSelection() {
+    setSelectedFields([]);
+    setPage(1);
+    syncFilterParams({ field: null, page: null });
   }
 
   function goToPage(next: number) {
@@ -188,6 +257,13 @@ export default function DissertationTable({
       : selectedUniversities.length === 1
         ? selectedUniversities[0]
         : dict.universitiesSelected(selectedUniversities.length);
+
+  const fieldLabel =
+    selectedFields.length === 0
+      ? dict.allFields
+      : selectedFields.length === 1
+        ? fieldLabels[selectedFields[0]]
+        : dict.fieldsSelected(selectedFields.length);
 
   return (
     <div className="flex flex-col gap-4">
@@ -244,6 +320,51 @@ export default function DissertationTable({
             </div>
           )}
         </div>
+
+        <div ref={fieldMenuRef} className="relative w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setIsFieldMenuOpen((open) => !open)}
+            aria-expanded={isFieldMenuOpen}
+            className={
+              "flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-sm text-black dark:bg-zinc-950 dark:text-zinc-50 sm:min-w-56 " +
+              (isFieldMenuOpen
+                ? "border-indigo-400 dark:border-indigo-500"
+                : "border-black/[.08] dark:border-white/[.145]")
+            }
+          >
+            {fieldLabel}
+            <span aria-hidden className="text-zinc-400">▾</span>
+          </button>
+          {isFieldMenuOpen && (
+            <div className="absolute z-10 mt-2 flex max-h-72 w-full min-w-56 flex-col gap-1 overflow-y-auto rounded-lg border border-black/[.08] bg-white p-2 shadow-lg dark:border-white/[.145] dark:bg-zinc-950">
+              <label className="flex items-center gap-2 rounded px-2 py-1 text-sm text-black hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-900">
+                <input
+                  type="checkbox"
+                  checked={selectedFields.length === 0}
+                  onChange={clearFieldSelection}
+                  className="accent-indigo-600"
+                />
+                {dict.all}
+              </label>
+              <hr className="my-1 border-black/[.08] dark:border-white/[.145]" />
+              {PAALUOKKA_ORDER.map((field) => (
+                <label
+                  key={field}
+                  className="flex items-center gap-2 rounded px-2 py-1 text-sm text-black hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-900"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedFields.includes(field)}
+                    onChange={() => toggleField(field)}
+                    className="accent-indigo-600"
+                  />
+                  {fieldLabels[field]} ({fieldCounts.get(field) ?? 0})
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {sorted.length === 0 ? (
@@ -258,10 +379,14 @@ export default function DissertationTable({
               >
                 <p className="font-medium text-black dark:text-zinc-50">{d.name}</p>
                 <p className="text-zinc-700 dark:text-zinc-300">{d.title ?? "—"}</p>
+                {d.oppiaine && (
+                  <p className="text-xs text-zinc-500 dark:text-zinc-500">{dict.subjectPrefix}{d.oppiaine}</p>
+                )}
                 <p className="flex flex-wrap items-center gap-2 text-zinc-500 dark:text-zinc-500">
                   <span>
                     {d.university ?? "—"}
                     {formatDate(d.defense_date, dateLocale) ? ` · ${formatDate(d.defense_date, dateLocale)}` : ""}
+                    {d.paaluokka ? ` · ${fieldLabels[d.paaluokka] ?? d.paaluokka}` : ""}
                   </span>
                   {d.defense_date === today && <TodayBadge label={dict.today} />}
                 </p>
@@ -313,7 +438,12 @@ export default function DissertationTable({
                     className="border-b border-black/[.08] bg-white last:border-b-0 hover:bg-indigo-50/50 dark:border-white/[.145] dark:bg-black dark:hover:bg-indigo-950/20"
                   >
                     <td className="px-4 py-3 font-medium text-black dark:text-zinc-50">{d.name}</td>
-                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.title ?? "—"}</td>
+                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
+                      {d.title ?? "—"}
+                      {d.oppiaine && (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-500">{dict.subjectPrefix}{d.oppiaine}</p>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.university ?? "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-zinc-700 dark:text-zinc-300">
                       <span className="flex items-center gap-2">
@@ -322,6 +452,9 @@ export default function DissertationTable({
                       </span>
                     </td>
                     <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{d.opponent ?? "—"}</td>
+                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
+                      {d.paaluokka ? (fieldLabels[d.paaluokka] ?? d.paaluokka) : "—"}
+                    </td>
                     <td className="px-4 py-3">
                       <a
                         href={d.link}
