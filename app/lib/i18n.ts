@@ -28,6 +28,11 @@ export interface Dictionary {
     universitiesSelected: (count: number) => string;
     allFields: string;
     fieldsSelected: (count: number) => string;
+    timeRange: {
+      all: string;
+      next7: string;
+      next30: string;
+    };
     columns: {
       name: string;
       title: string;
@@ -73,6 +78,11 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
       universitiesSelected: (count) => `${count} yliopistoa valittu`,
       allFields: "Kaikki tieteenalat",
       fieldsSelected: (count) => `${count} tieteenalaa valittu`,
+      timeRange: {
+        all: "Kaikki tulevat",
+        next7: "Seuraavat 7 päivää",
+        next30: "Seuraavat 30 päivää",
+      },
       columns: {
         name: "Väittelijä",
         title: "Väitöksen aihe",
@@ -116,6 +126,11 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
       universitiesSelected: (count) => `${count} universitet valda`,
       allFields: "Alla vetenskapsområden",
       fieldsSelected: (count) => `${count} vetenskapsområden valda`,
+      timeRange: {
+        all: "Alla kommande",
+        next7: "Nästa 7 dagar",
+        next30: "Nästa 30 dagar",
+      },
       columns: {
         name: "Doktorand",
         title: "Avhandlingens ämne",
@@ -159,6 +174,11 @@ export const DICTIONARIES: Record<Lang, Dictionary> = {
       universitiesSelected: (count) => `${count} universities selected`,
       allFields: "All fields of science",
       fieldsSelected: (count) => `${count} fields selected`,
+      timeRange: {
+        all: "All upcoming",
+        next7: "Next 7 days",
+        next30: "Next 30 days",
+      },
       columns: {
         name: "Candidate",
         title: "Dissertation topic",

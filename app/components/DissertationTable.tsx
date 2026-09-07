@@ -25,6 +25,12 @@ export interface DissertationRow {
 type SortColumn = "name" | "title" | "university" | "defense_date" | "opponent" | "paaluokka";
 type SortDirection = "asc" | "desc";
 
+// Single-select, not multi — the periods are nested (7 days is inside 30),
+// so letting more than one be active at once wouldn't mean anything.
+type TimeRange = "kaikki" | "tanaan" | "7" | "30";
+const TIME_RANGES: TimeRange[] = ["kaikki", "tanaan", "7", "30"];
+const DEFAULT_TIME_RANGE: TimeRange = "kaikki";
+
 const PAGE_SIZE = 20;
 const SORT_COLUMNS: SortColumn[] = [
   "name",
@@ -54,6 +60,22 @@ function compareNullable(a: string | null, b: string | null, locale: string) {
 
 function getTodayInHelsinki(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Helsinki" }).format(new Date());
+}
+
+// Plain UTC day arithmetic on a date-only (no time) string is fine here —
+// we only ever add whole days to compare against other date-only strings,
+// so there's no time-of-day/DST subtlety to get wrong.
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function matchesTimeRange(defenseDate: string | null, range: TimeRange, today: string): boolean {
+  if (range === "kaikki") return true;
+  if (!defenseDate) return false;
+  if (range === "tanaan") return defenseDate === today;
+  return defenseDate >= today && defenseDate <= addDays(today, range === "7" ? 7 : 30);
 }
 
 function TodayBadge({ label }: { label: string }) {
@@ -93,6 +115,9 @@ export default function DissertationTable({
   const [selectedFields, setSelectedFields] = useState<string[]>(() =>
     parseListParam(searchParams.get("field"))
   );
+  const [timeRange, setTimeRange] = useState<TimeRange>(() =>
+    parseEnumParam(searchParams.get("range"), TIME_RANGES, DEFAULT_TIME_RANGE)
+  );
   const [sortColumn, setSortColumn] = useState<SortColumn>(() =>
     parseEnumParam(searchParams.get("sort"), SORT_COLUMNS, DEFAULT_SORT_COLUMN)
   );
@@ -104,6 +129,8 @@ export default function DissertationTable({
   const universityMenuRef = useRef<HTMLDivElement>(null);
   const [isFieldMenuOpen, setIsFieldMenuOpen] = useState(false);
   const fieldMenuRef = useRef<HTMLDivElement>(null);
+  const [isTimeRangeMenuOpen, setIsTimeRangeMenuOpen] = useState(false);
+  const timeRangeMenuRef = useRef<HTMLDivElement>(null);
   const today = useMemo(() => getTodayInHelsinki(), []);
 
   useEffect(() => {
@@ -148,6 +175,27 @@ export default function DissertationTable({
     };
   }, [isFieldMenuOpen]);
 
+  useEffect(() => {
+    if (!isTimeRangeMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!timeRangeMenuRef.current?.contains(event.target as Node)) {
+        setIsTimeRangeMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setIsTimeRangeMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isTimeRangeMenuOpen]);
+
   const universities = useMemo(
     () =>
       Array.from(new Set(dissertations.map((d) => d.university).filter((u): u is string => Boolean(u)))).sort(
@@ -157,9 +205,9 @@ export default function DissertationTable({
   );
 
   // Split into two layers so the field-of-science box counts reflect
-  // search/university filtering but not the field selection itself —
-  // otherwise every count would collapse to the selected boxes' own count
-  // the moment you clicked one.
+  // search/university/time-range filtering but not the field selection
+  // itself — otherwise every count would collapse to the selected boxes'
+  // own count the moment you clicked one.
   const filteredBeforeField = useMemo(() => {
     const query = search.trim().toLowerCase();
     return dissertations.filter((d) => {
@@ -170,9 +218,10 @@ export default function DissertationTable({
       const matchesUniversity =
         selectedUniversities.length === 0 ||
         (d.university !== null && selectedUniversities.includes(d.university));
-      return matchesSearch && matchesUniversity;
+      const matchesTime = matchesTimeRange(d.defense_date, timeRange, today);
+      return matchesSearch && matchesUniversity && matchesTime;
     });
-  }, [dissertations, search, selectedUniversities]);
+  }, [dissertations, search, selectedUniversities, timeRange, today]);
 
   const fieldCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -228,6 +277,13 @@ export default function DissertationTable({
     syncFilterParams({ field: next.length > 0 ? next.join(",") : null, page: null });
   }
 
+  function handleTimeRangeChange(range: TimeRange) {
+    setTimeRange(range);
+    setPage(1);
+    setIsTimeRangeMenuOpen(false);
+    syncFilterParams({ range: range === DEFAULT_TIME_RANGE ? null : range, page: null });
+  }
+
   function handleSearchChange(value: string) {
     setSearch(value);
     setPage(1);
@@ -264,6 +320,14 @@ export default function DissertationTable({
       : selectedFields.length === 1
         ? fieldLabels[selectedFields[0]]
         : dict.fieldsSelected(selectedFields.length);
+
+  const timeRangeOptionLabels: Record<TimeRange, string> = {
+    kaikki: dict.timeRange.all,
+    tanaan: dict.today,
+    "7": dict.timeRange.next7,
+    "30": dict.timeRange.next30,
+  };
+  const timeRangeLabel = timeRangeOptionLabels[timeRange];
 
   return (
     <div className="flex flex-col gap-4">
@@ -360,6 +424,42 @@ export default function DissertationTable({
                     className="accent-indigo-600"
                   />
                   {fieldLabels[field]} ({fieldCounts.get(field) ?? 0})
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div ref={timeRangeMenuRef} className="relative w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setIsTimeRangeMenuOpen((open) => !open)}
+            aria-expanded={isTimeRangeMenuOpen}
+            className={
+              "flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-sm text-black dark:bg-zinc-950 dark:text-zinc-50 sm:min-w-56 " +
+              (isTimeRangeMenuOpen
+                ? "border-indigo-400 dark:border-indigo-500"
+                : "border-black/[.08] dark:border-white/[.145]")
+            }
+          >
+            {timeRangeLabel}
+            <span aria-hidden className="text-zinc-400">▾</span>
+          </button>
+          {isTimeRangeMenuOpen && (
+            <div className="absolute z-10 mt-2 flex w-full min-w-56 flex-col gap-1 rounded-lg border border-black/[.08] bg-white p-2 shadow-lg dark:border-white/[.145] dark:bg-zinc-950">
+              {TIME_RANGES.map((range) => (
+                <label
+                  key={range}
+                  className="flex items-center gap-2 rounded px-2 py-1 text-sm text-black hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-900"
+                >
+                  <input
+                    type="radio"
+                    name="time-range"
+                    checked={timeRange === range}
+                    onChange={() => handleTimeRangeChange(range)}
+                    className="accent-indigo-600"
+                  />
+                  {timeRangeOptionLabels[range]}
                 </label>
               ))}
             </div>
